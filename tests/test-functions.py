@@ -4,6 +4,7 @@ import word_freqs as wf
 import praw
 from collections import defaultdict
 
+
 class TestSequenceFunctions(unittest.TestCase):
 
     def setUp(self):
@@ -45,15 +46,15 @@ class TestSequenceFunctions(unittest.TestCase):
         # open connection to Reddit
         r = praw.Reddit(user_agent="test bot by test")
         r.config.decode_html_entities = True
-        
-        popularWords = {"reddit" : 48, "upvoted" : 32, "upvote" : 23, "comments" : 13, "3" : 12, "fuck" : 11, "qgyh2" : 9, "upvotes" : 9, "fucking" : 8, "posts" : 7}
+
+        popularWords = {"reddit": 48, "upvoted": 32, "upvote": 23, "comments": 13, "3": 12, "fuck": 11, "qgyh2": 9, "upvotes": 9, "fucking": 8, "posts": 7}
         wfpw = defaultdict(int)
 
         # parse a fixed thread
         # TODO: make our own test thread
         sub = r.get_submission(url="http://www.reddit.com/r/pics/comments/92dd8/test_post_please_ignore/")
         wf.processSubmission(sub)
-        
+
         # only look at the top 10 most-used words in the thread
         # TODO: look at all words used in thread
         ct = 0
@@ -64,7 +65,7 @@ class TestSequenceFunctions(unittest.TestCase):
                 break
 
         self.assertEqual(popularWords, wfpw)
-        
+
     def test_processSubreddit(self):
         """
         Can't think of an easy, repeatable way to do this right now.

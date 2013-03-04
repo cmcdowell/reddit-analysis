@@ -25,24 +25,24 @@ from collections import defaultdict
 from optparse import OptionParser
 from requests.exceptions import HTTPError
 
-popularWords = defaultdict(int)
-commonWords = set()
+popular_words = defaultdict(int)
+common_words = set()
 
 # punctuation to strip from words
-punctuation = " " + string.punctuation + "\n"
+PUNCTUATION = " " + string.punctuation + "\n"
 
 # load a list of common words to ignore
-with open("common-words.csv", "r") as commonWordsFile:
-    for commonWordFileLine in csv.reader(commonWordsFile):
-        for commonWord in commonWordFileLine:
-            commonWords.add(commonWord.strip(punctuation).lower())
+with open("common-words.csv", "r") as common_words_file:
+    for common_word_file_line in csv.reader(common_words_file):
+        for common_word in common_word_file_line:
+            common_words.add(common_word.strip(PUNCTUATION).lower())
 
-with open("/usr/share/dict/words", "r") as dictionaryFile:
-    for dictionaryWord in dictionaryFile:
-        commonWords.add(dictionaryWord.strip(punctuation).lower())
+with open("/usr/share/dict/words", "r") as dictionary_file:
+    for dictionary_word in dictionary_file:
+        common_words.add(dictionary_word.strip(PUNCTUATION).lower())
 
 # put words here that you don't want to include in the word cloud
-excludedWords = ["/", "--", "...", "deleted", ")x"]
+EXCLUDED_WORDS = ["/", "--", "...", "deleted", ")x"]
 
 # Global Variable Initialization
 options = None
@@ -109,35 +109,35 @@ def parse_cmd_line():
     return user, target
 
 
-def parseText(text):
+def parse_text(text):
     """Parse the passed in text and add words that are not common."""
     total = 0.0  # intentionally a float
     text_words = defaultdict(int)
     for word in text.split():  # Split on all whitespace
-        word = word.strip(punctuation).lower()
+        word = word.strip(PUNCTUATION).lower()
         total += 1
-        if word and word not in commonWords:
+        if word and word not in common_words:
             text_words[word] += 1
 
-    # Add to popularWords list
+    # Add to popular_words list
     for word, count in text_words.items():
         if count / total <= options.max_threshold:
             if options.count_word_freqs:
-                popularWords[word] += count
+                popular_words[word] += count
             else:
-                popularWords[word] += 1
+                popular_words[word] += 1
 
 
-def processRedditor(redditor):
+def process_redditor(redditor):
     """Parse submissions and comments for the given Redditor."""
     for entry in with_status(redditor.get_overview(limit=options.limit)):
         if isinstance(entry, praw.objects.Comment):  # Parse comment
-            parseText(entry.body)
+            parse_text(entry.body)
         else:  # Parse submission
-            processSubmission(entry, include_comments=False)
+            process_submission(entry, include_comments=False)
 
 
-def processSubmission(submission, include_comments=True):
+def process_submission(submission, include_comments=True):
     """Parse a submission's text and body (if applicable).
 
     Include the submission's comments when `include_comments` is True.
@@ -146,17 +146,17 @@ def processSubmission(submission, include_comments=True):
     if include_comments:  # parse all the comments for the submission
         submission.replace_more_comments()
         for comment in praw.helpers.flatten_tree(submission.comments):
-            parseText(comment.body)
+            parse_text(comment.body)
 
     # parse the title of the submission
-    parseText(submission.title)
+    parse_text(submission.title)
 
     # parse the selftext of the submission (if applicable)
     if submission.is_self:
-        parseText(submission.selftext)
+        parse_text(submission.selftext)
 
 
-def processSubreddit(subreddit):
+def process_subreddit(subreddit):
     """Parse comments, title text, and selftext in a given subreddit."""
 
     # determine period to count the words over
@@ -164,7 +164,7 @@ def processSubreddit(subreddit):
     for submission in with_status(subreddit.get_top(limit=options.limit,
                                                     params=params)):
         try:
-            processSubmission(submission)
+            process_submission(submission)
         except HTTPError as exc:
             sys.stderr.write("\nSkipping submission {0} due to HTTP status {1}"
                              " error. Continuing...\n"
@@ -173,7 +173,7 @@ def processSubreddit(subreddit):
 
 
 def with_status(iterable):
-    """Wrap an iterable outputing '.' for each item (up to 50 a line)."""
+    """Wrap an iterable outputting '.' for each item (up to 50 a line)."""
     for i, item in enumerate(iterable):
         sys.stderr.write('.')
         sys.stderr.flush()
@@ -196,31 +196,31 @@ def main():
     target = target[3:]
 
     if options.is_subreddit:
-        processSubreddit(r.get_subreddit(target))
+        process_subreddit(r.get_subreddit(target))
     else:
-        processRedditor(r.get_redditor(target))
+        process_redditor(r.get_redditor(target))
 
     # build a string containing all the words for the word cloud software
     output = ""
 
     # open output file to store the output string
-    outFileName = target + ".csv"
+    out_file_name = target + ".csv"
 
     if not options.is_subreddit:
-            outFileName = "user-" + outFileName
+            out_file_name = "user-" + out_file_name
 
-    outFile = open(outFileName, "w")
+    out_file = open(out_file_name, "w")
 
-    for word in sorted(popularWords.keys()):
+    for word in sorted(popular_words.keys()):
 
         # tweak this number depending on the subreddit
         # some subreddits end up having TONS of words and it seems to overflow
         # the Python string buffer
-        if popularWords[word] > 2:
+        if popular_words[word] > 2:
             pri = True
 
             # do not print a word if it is in the excluded word list
-            for ew in excludedWords:
+            for ew in EXCLUDED_WORDS:
                 if ew in word:
                     pri = False
                     break
@@ -235,13 +235,13 @@ def main():
             # add as many copies of the word as it was mentioned in the
             # subreddit
             if pri:
-                txt = ((word + " ") * popularWords[word])
+                txt = ((word + " ") * popular_words[word])
                 txt = txt.encode("UTF-8").strip(" ")
                 txt += " "
                 output += txt
-                outFile.write(txt)
+                out_file.write(txt)
 
-    outFile.close()
+    out_file.close()
 
     # print the series of words for the word cloud software
     # place this text into wordle.net
